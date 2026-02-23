@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Knife Grinding Calculators</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --background-color: #f4f4f9;
+            --card-background: #ffffff;
+            --text-color: #333;
+            --label-color: #1a1a1a;
+            --border-color: #ccc;
+            --results-bg: #e9f5ff;
+            --note-bg: #fffde7;
+            --note-border: #fbc02d;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0 auto;
+            max-width: 700px;
+            padding: 1rem;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        .calculator {
+            background-color: var(--card-background);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: var(--label-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin-top: 1rem;
+            font-weight: bold;
+            color: var(--label-color);
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 0.5rem;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            margin-top: 1.5rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        .results {
+            margin-top: 1.5rem;
+            background-color: var(--results-bg);
+            padding: 1rem;
+            border-radius: 5px;
+            border-left: 5px solid var(--primary-color);
+        }
+        .results p { margin: 0.8rem 0; font-size: 1.1rem; }
+        .results span { font-weight: bold; float: right; }
+        .note {
+            font-size: 0.9rem;
+            color: #555;
+            margin-top: 1rem;
+            padding: 0.8rem;
+            background-color: var(--note-bg);
+            border: 1px dashed var(--note-border);
+            border-radius: 4px;
+        }
+        .unit-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            background-color: var(--card-background);
+            padding: 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .unit-toggle label { margin: 0; padding: 0.5rem 1rem; cursor: pointer; border-radius: 6px; transition: background-color 0.3s, color 0.3s; font-weight: normal; }
+        .unit-toggle input { display: none; }
+        .unit-toggle input:checked + label { background-color: var(--primary-color); color: white; font-weight: bold; }
+        .bevel-container { display: flex; flex-wrap: wrap; gap: 2rem; margin-top: 1.5rem; align-items: center; }
+        .bevel-inputs { flex: 1 1 250px; }
+        .bevel-visualizer { flex: 1 1 300px; min-width: 280px; }
+        .bevel-diagram { position: relative; width: 100%; max-width: 300px; margin: 0 auto; }
+        .bevel-diagram svg { display: block; width: 100%; height: auto; }
+        .bevel-shape { fill: #d0e7ff; stroke: var(--primary-color); stroke-width: 2px; }
+        .edge-flat { fill: var(--primary-color); }
+        .center-line { stroke: var(--primary-color); stroke-width: 1px; stroke-dasharray: 4; }
+        .diagram-labels { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+        .label-thickness { position: absolute; top: 50%; left: -20px; transform: translateY(-50%) rotate(-90deg); background: rgba(255,255,255,0.7); padding: 0 3px; font-size: 14px; }
+        .label-height { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: var(--card-background); padding: 0 3px; font-size: 14px; }
+        #bevel-angle-label { position: absolute; bottom: 5px; left: 58%; font-weight: bold; color: var(--primary-hover); font-size: 15px; }
+        #bevel-results-display { text-align: center; }
+        #bevel-results-display p { font-size: 1.2rem; font-weight: bold; margin: 0.5rem 0;}
+        #bevel-results-display span { font-weight: normal; color: var(--primary-color); }
+    </style>
+</head>
+<body>
+
+    <h1>Knife Grinding Calculators</h1>
+
+    <div class="unit-toggle">
+        <input type="radio" id="units-in" name="units" value="in" checked onchange="switchUnits()">
+        <label for="units-in">Inches</label>
+        <input type="radio" id="units-mm" name="units" value="mm" onchange="switchUnits()">
+        <label for="units-mm">Millimeters</label>
+    </div>
+
+    <!-- Scribe Line Calculator -->
+    <div class="calculator">
+        <h2>"Railroad Track" Scribe Calculator</h2>
+        <p>Calculates the caliper setting to scribe parallel lines for a target edge thickness before heat treat.</p>
+        <label for="totalEdgeThickness">Total Stock Thickness <span class="unit-label-dist">(in)</span>:</label>
+        <input type="number" id="totalEdgeThickness" placeholder="e.g., 0.125" inputmode="decimal">
+        <label for="targetEdgeThickness">Target Edge Thickness <span class="unit-label-dist">(in)</span>:</label>
+        <input type="number" id="targetEdgeThickness" placeholder="e.g., 0.020" inputmode="decimal">
+        <button onclick="calculateScribe()">Calculate Scribe Setting</button>
+        <div class="results" id="scribeResults" style="display:none;">
+            <p>Scribe From Center: <span id="scribeFromCenter"></span></p>
+            <p>Grind Depth Per Side: <span id="grindDepth"></span></p>
+        </div>
+    </div>
+
+    <!-- Taper Calculator -->
+    <div class="calculator">
+        <h2>Taper Calculator</h2>
+        <label for="largeEnd">Large End Thickness <span class="unit-label-dist">(in)</span>:</label>
+        <input type="number" id="largeEnd" placeholder="e.g., 0.187" inputmode="decimal">
+        <label for="smallEnd">Small End Thickness <span class="unit-label-dist">(in)</span>:</label>
+        <input type="number" id="smallEnd" placeholder="e.g., 0.05" inputmode="decimal">
+        <label for="taperLength">Taper Length <span class="unit-label-dist">(in)</span>:</label>
+        <input type="number" id="taperLength" placeholder="e.g., 8" inputmode="decimal">
+        <label for="sineBarLength">Sine Bar Length <span class="unit-label-dist">(in)</span>:</label>
+        <input type="number" id="sineBarLength" placeholder="e.g., 5" inputmode="decimal">
+        <button onclick="calculateTaper()">Calculate Taper</button>
+        <div class="results" id="taperResults" style="display:none;">
+            <p>Angle per side: <span id="taperAngle"></span></p>
+            <p>Shim Height: <span id="shimHeight"></span></p>
+        </div>
+    </div>
+
+    <!-- Bevel Calculator -->
+    <div class="calculator">
+        <h2>Knife Bevel Calculator</h2>
+        <div class="bevel-container">
+            <div class="bevel-inputs">
+                <label for="bladeThickness">Blade Thickness <span class="unit-label-dist">(in)</span>:</label>
+                <input type="number" id="bladeThickness" placeholder="e.g., 0.125" inputmode="decimal">
+                <label for="bevelHeight">Bevel Height <span class="unit-label-dist">(in)</span>:</label>
+                <input type="number" id="bevelHeight" placeholder="e.g., 0.75" inputmode="decimal">
+                <label for="edgeThickness">Desired Edge Thickness <span class="unit-label-dist">(in)</span>:</label>
+                <input type="number" id="edgeThickness" value="0" placeholder="e.g., 0.020" inputmode="decimal">
+                <button onclick="calculateBevel()">Calculate Bevel</button>
+            </div>
+            <div class="bevel-visualizer">
+                <div class="bevel-diagram">
+                    <svg viewBox="-25 -5 150 115">
+                        <polygon points="50,0 0,100 100,100" class="bevel-shape" />
+                        <rect x="40" y="100" width="20" height="5" class="edge-flat" />
+                        <line x1="50" y1="0" x2="50" y2="100" class="center-line" />
+                    </svg>
+                    <div class="diagram-labels">
+                        <span class="label-thickness">Thickness</span>
+                        <span class="label-height">Height</span>
+                        <span id="bevel-angle-label"></span>
+                    </div>
+                </div>
+                 <div class="results" id="bevel-results-display" style="display:none;">
+                    <p>Angle per Side: <span id="bevelAnglePerSide"></span></p>
+                    <p>Included Angle: <span id="bevelAngleTotal"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const unitsState = { current: 'in' };
+
+        function switchUnits() {
+            unitsState.current = document.querySelector('input[name="units"]:checked').value;
+            const unitText = `(${unitsState.current})`;
+            document.querySelectorAll('.unit-label-dist').forEach(label => {
+                label.textContent = unitText;
+            });
+        }
+
+        function toRad(degrees) { return degrees * (Math.PI / 180); }
+        function toDeg(radians) { return radians * (180 / Math.PI); }
+
+        function calculateScribe() {
+            const total = parseFloat(document.getElementById('totalEdgeThickness').value);
+            const target = parseFloat(document.getElementById('targetEdgeThickness').value);
+            
+            if (isNaN(total) || isNaN(target)) {
+                alert("Please fill in both fields for the Scribe Calculator.");
+                return;
+            }
+            if (target >= total) {
+                alert("Target Edge Thickness must be less than Total Stock Thickness.");
+                return;
+            }
+
+            const fromCenter = target / 2;
+            const grindDepth = (total - target) / 2;
+
+            document.getElementById('scribeFromCenter').textContent = `${fromCenter.toFixed(4)} ${unitsState.current}`;
+            document.getElementById('grindDepth').textContent = `${grindDepth.toFixed(4)} ${unitsState.current}`;
+            document.getElementById('scribeResults').style.display = 'block';
+        }
+
+        function calculateTaper() {
+            const largeEnd = parseFloat(document.getElementById('largeEnd').value);
+            const smallEnd = parseFloat(document.getElementById('smallEnd').value);
+            const taperLength = parseFloat(document.getElementById('taperLength').value);
+            const sineBarLength = parseFloat(document.getElementById('sineBarLength').value);
+
+            if ([largeEnd, smallEnd, taperLength, sineBarLength].some(isNaN)) {
+                alert("Please fill in all four fields for the Taper Calculator.");
+                return;
+            }
+
+            const heightDiff = (largeEnd - smallEnd) / 2;
+            const angleRad = Math.atan(heightDiff / taperLength);
+            const angleDeg = toDeg(angleRad);
+            const shimHeight = sineBarLength * Math.sin(angleRad);
+
+            document.getElementById('taperAngle').textContent = angleDeg.toFixed(3) + '°';
+            document.getElementById('shimHeight').textContent = `${shimHeight.toFixed(4)} ${unitsState.current}`;
+            document.getElementById('taperResults').style.display = 'block';
+        }
+
+        function calculateBevel() {
+            const bladeThick = parseFloat(document.getElementById('bladeThickness').value);
+            const bevelHeight = parseFloat(document.getElementById('bevelHeight').value);
+            const edgeThick = parseFloat(document.getElementById('edgeThickness').value) || 0;
+
+            if (isNaN(bladeThick) || isNaN(bevelHeight)) {
+                alert("Please fill in Blade Thickness and Bevel Height.");
+                return;
+            }
+            if (edgeThick >= bladeThick) {
+                alert("Desired Edge Thickness must be less than Blade Thickness.");
+                return;
+            }
+
+            const adjacent = bevelHeight;
+            const opposite = (bladeThick - edgeThick) / 2;
+            const angleRad = Math.atan(opposite / adjacent);
+            const angleDeg = toDeg(angleRad);
+
+            document.getElementById('bevelAnglePerSide').textContent = angleDeg.toFixed(2) + '°';
+            document.getElementById('bevelAngleTotal').textContent = (angleDeg * 2).toFixed(2) + '°';
+            document.getElementById('bevel-angle-label').textContent = angleDeg.toFixed(1) + '°';
+            
+            document.getElementById('bevel-results-display').style.display = 'block';
+        }
+
+        // Initialize units on page load
+        document.addEventListener('DOMContentLoaded', switchUnits);
+    </script>
+
+</body>
+</html>
