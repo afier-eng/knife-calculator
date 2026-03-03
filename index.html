@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Knife Grinding Calculators</title>
+    <title>Knife Grinding & Unit Conversion Calculators</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
@@ -45,7 +45,8 @@
             font-weight: bold;
             color: var(--label-color);
         }
-        input[type="number"] {
+        input[type="number"],
+        input[type="text"] {
             width: 100%;
             padding: 12px;
             margin-top: 0.5rem;
@@ -118,7 +119,20 @@
 </head>
 <body>
 
-    <h1>Knife Grinding Calculators</h1>
+    <h1>Knife Grinding & Unit Conversion</h1>
+
+    <!-- MM & Inches Converter -->
+    <div class="calculator">
+        <h2>MM & Inches Converter</h2>
+        <label for="mm">Millimeters</label>
+        <input type="number" id="mm" oninput="convert('mm')" placeholder="e.g., 19.05">
+
+        <label for="inches_decimal">Inches (Decimal)</label>
+        <input type="number" id="inches_decimal" oninput="convert('decimal')" placeholder="e.g., 0.75">
+
+        <label for="inches_fraction">Inches (Fraction)</label>
+        <input type="text" id="inches_fraction" oninput="convert('fraction')" placeholder="e.g., 3/4 or 1 1/2">
+    </div>
 
     <div class="unit-toggle">
         <input type="radio" id="units-in" name="units" value="in" checked onchange="switchUnits()">
@@ -141,7 +155,6 @@
             <p>Grind Depth Per Side: <span id="grindDepth"></span></p>
         </div>
     </div>
-
     <!-- Taper Calculator -->
     <div class="calculator">
         <h2>Taper Calculator</h2>
@@ -159,7 +172,6 @@
             <p>Shim Height: <span id="shimHeight"></span></p>
         </div>
     </div>
-
     <!-- Bevel Calculator -->
     <div class="calculator">
         <h2>Knife Bevel Calculator</h2>
@@ -193,10 +205,102 @@
             </div>
         </div>
     </div>
-
     <script>
         const unitsState = { current: 'in' };
 
+        // --- Unit Converter Functions ---
+        const mmInput = document.getElementById('mm');
+        const decimalInput = document.getElementById('inches_decimal');
+        const fractionInput = document.getElementById('inches_fraction');
+        const inchToMmRate = 25.4;
+
+        function convert(source) {
+            if (window.isConverting) return;
+            window.isConverting = true;
+
+            if (source === 'mm') {
+                const mmValue = parseFloat(mmInput.value);
+                if (!isNaN(mmValue)) {
+                    const decimalValue = mmValue / inchToMmRate;
+                    decimalInput.value = decimalValue.toFixed(5);
+                    fractionInput.value = decimalToFraction(decimalValue);
+                } else {
+                    decimalInput.value = '';
+                    fractionInput.value = '';
+                }
+            } else if (source === 'decimal') {
+                const decimalValue = parseFloat(decimalInput.value);
+                if (!isNaN(decimalValue)) {
+                    mmInput.value = (decimalValue * inchToMmRate).toFixed(5);
+                    fractionInput.value = decimalToFraction(decimalValue);
+                } else {
+                    mmInput.value = '';
+                    fractionInput.value = '';
+                }
+            } else if (source === 'fraction') {
+                const fractionValue = fractionInput.value;
+                const decimalValue = fractionToDecimal(fractionValue);
+                if (!isNaN(decimalValue)) {
+                    decimalInput.value = decimalValue.toFixed(5);
+                    mmInput.value = (decimalValue * inchToMmRate).toFixed(5);
+                } else if (fractionValue.trim() === '') {
+                    mmInput.value = '';
+                    decimalInput.value = '';
+                }
+            }
+            window.isConverting = false;
+        }
+
+        function fractionToDecimal(fraction) {
+            if (!fraction || fraction.trim() === '') return NaN;
+            const parts = fraction.trim().split(' ');
+            let decimal = 0;
+            if (parts.length > 1) {
+                decimal += parseFloat(parts[0]);
+                fraction = parts[1];
+            }
+            const fractionParts = fraction.split('/');
+            if (fractionParts.length === 2) {
+                const numerator = parseFloat(fractionParts[0]);
+                const denominator = parseFloat(fractionParts[1]);
+                if (denominator !== 0) {
+                    decimal += numerator / denominator;
+                } else {
+                    return NaN;
+                }
+            } else if (parts.length === 1) {
+                 return parseFloat(fraction);
+            }
+            return decimal;
+        }
+
+        function decimalToFraction(decimal) {
+            if (isNaN(decimal) || decimal === null) return '';
+            const whole = Math.floor(decimal);
+            const fractionalPart = decimal - whole;
+            if (fractionalPart === 0) {
+                return whole > 0 ? whole.toString() : (decimal === 0 && document.activeElement !== mmInput && document.activeElement !== decimalInput) ? '0' : (whole === 0 ? '' : whole.toString());
+            }
+            const denominator = 64; 
+            const numerator = Math.round(fractionalPart * denominator);
+            if (numerator === 0) {
+                 return whole > 0 ? whole.toString() : '';
+            }
+            const commonDivisor = gcd(numerator, denominator);
+            const simplifiedNumerator = numerator / commonDivisor;
+            const simplifiedDenominator = denominator / commonDivisor;
+            let fractionStr = `${simplifiedNumerator}/${simplifiedDenominator}`;
+            if (whole > 0) {
+                return `${whole} ${fractionStr}`;
+            }
+            return fractionStr;
+        }
+
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        // --- Knife Grinding Calculator Functions ---
         function switchUnits() {
             unitsState.current = document.querySelector('input[name="units"]:checked').value;
             const unitText = `(${unitsState.current})`;
@@ -204,10 +308,8 @@
                 label.textContent = unitText;
             });
         }
-
         function toRad(degrees) { return degrees * (Math.PI / 180); }
         function toDeg(radians) { return radians * (180 / Math.PI); }
-
         function calculateScribe() {
             const total = parseFloat(document.getElementById('totalEdgeThickness').value);
             const target = parseFloat(document.getElementById('targetEdgeThickness').value);
@@ -220,41 +322,33 @@
                 alert("Target Edge Thickness must be less than Total Stock Thickness.");
                 return;
             }
-
             const fromCenter = target / 2;
             const grindDepth = (total - target) / 2;
-
             document.getElementById('scribeFromCenter').textContent = `${fromCenter.toFixed(4)} ${unitsState.current}`;
             document.getElementById('grindDepth').textContent = `${grindDepth.toFixed(4)} ${unitsState.current}`;
             document.getElementById('scribeResults').style.display = 'block';
         }
-
         function calculateTaper() {
             const largeEnd = parseFloat(document.getElementById('largeEnd').value);
             const smallEnd = parseFloat(document.getElementById('smallEnd').value);
             const taperLength = parseFloat(document.getElementById('taperLength').value);
             const sineBarLength = parseFloat(document.getElementById('sineBarLength').value);
-
             if ([largeEnd, smallEnd, taperLength, sineBarLength].some(isNaN)) {
                 alert("Please fill in all four fields for the Taper Calculator.");
                 return;
             }
-
             const heightDiff = (largeEnd - smallEnd) / 2;
             const angleRad = Math.atan(heightDiff / taperLength);
             const angleDeg = toDeg(angleRad);
             const shimHeight = sineBarLength * Math.sin(angleRad);
-
             document.getElementById('taperAngle').textContent = angleDeg.toFixed(3) + '°';
             document.getElementById('shimHeight').textContent = `${shimHeight.toFixed(4)} ${unitsState.current}`;
             document.getElementById('taperResults').style.display = 'block';
         }
-
         function calculateBevel() {
             const bladeThick = parseFloat(document.getElementById('bladeThickness').value);
             const bevelHeight = parseFloat(document.getElementById('bevelHeight').value);
             const edgeThick = parseFloat(document.getElementById('edgeThickness').value) || 0;
-
             if (isNaN(bladeThick) || isNaN(bevelHeight)) {
                 alert("Please fill in Blade Thickness and Bevel Height.");
                 return;
@@ -263,22 +357,17 @@
                 alert("Desired Edge Thickness must be less than Blade Thickness.");
                 return;
             }
-
             const adjacent = bevelHeight;
             const opposite = (bladeThick - edgeThick) / 2;
             const angleRad = Math.atan(opposite / adjacent);
             const angleDeg = toDeg(angleRad);
-
             document.getElementById('bevelAnglePerSide').textContent = angleDeg.toFixed(2) + '°';
             document.getElementById('bevelAngleTotal').textContent = (angleDeg * 2).toFixed(2) + '°';
             document.getElementById('bevel-angle-label').textContent = angleDeg.toFixed(1) + '°';
             
             document.getElementById('bevel-results-display').style.display = 'block';
         }
-
-        // Initialize units on page load
         document.addEventListener('DOMContentLoaded', switchUnits);
     </script>
-
 </body>
 </html>
